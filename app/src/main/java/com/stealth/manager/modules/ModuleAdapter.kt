@@ -26,6 +26,7 @@ class ModuleAdapter(private val modules: List<StealthModule>) :
         val module = modules[position]
         holder.title.text = module.name
         holder.switcher.isChecked = module.isEnabled
+        // 修正了之前变量赋值的语法错误
         holder.switcher.setOnCheckedChangeListener { _, isChecked ->
             module.isEnabled = isChecked
         }
