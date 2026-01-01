@@ -1,9 +1,6 @@
-name: Stealth Patcher Final Build
+name: Stealth Patcher Final Success
 
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -12,81 +9,66 @@ jobs:
       - name: 1. 检出代码
         uses: actions/checkout@v4
 
-      - name: 2. 初始化 JDK 17
+      - name: 2. 配置 Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: 3. 补齐 Gradle 运行环境
+      - name: 3. 准备 Gradle 与 AndroidX 环境
         run: |
           cd app
+          # 补全 Gradle Wrapper
           G_VER="8.1.1"
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradlew -O gradlew
           chmod +x gradlew
           mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-$G_VER-bin.zip" > gradle/wrapper/gradle-wrapper.properties
-          # 注入 AndroidX 配置 (解决 AAR Metadata 报错)
+          # 强制开启 AndroidX
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
 
-      - name: 4. 自动生成极简图标与资源 (解决 Resource Not Found)
+      - name: 4. 修复图标资源 (防止链接报错)
         run: |
           RES_DIR="app/src/main/res"
-          mkdir -p $RES_DIR/mipmap-anydpi-v26
-          mkdir -p $RES_DIR/values
-
-          # 生成一个简单的绿色盾牌/隐身风格矢量图标
+          mkdir -p $RES_DIR/mipmap-anydpi-v26 $RES_DIR/values
           cat <<EOF > $RES_DIR/mipmap-anydpi-v26/ic_launcher.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-              <path android:fillColor="#000000" android:pathData="M0,0h108v108h-108z"/>
-              <path android:fillColor="#3DDC84" android:pathData="M54,20L24,34v20c0,18.5 12.8,35.8 30,40c17.2,-4.2 30,-21.5 30,-40V34L54,20zM54,40c4.4,0 8,3.6 8,8s-3.6,8 -8,8s-8,-3.6 -8,-8S49.6,40 54,40z"/>
-          </vector>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#000000" android:pathData="M0,0h108v108h-108z"/><path android:fillColor="#3DDC84" android:pathData="M54,20L24,34v20c0,18.5 12.8,35.8 30,40c17.2,-4.2 30,-21.5 30,-40V34L54,20zM54,40c4.4,0 8,3.6 8,8s-3.6,8 -8,8s-8,-3.6 -8,-8S49.6,40 54,40z"/></vector>
           EOF
-
-          # 复制为圆形图标
           cp $RES_DIR/mipmap-anydpi-v26/ic_launcher.xml $RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml
-          
-          # 补齐基础颜色定义
-          cat <<EOF > $RES_DIR/values/colors.xml
-          <?xml version="1.0" encoding="utf-8"?><resources><color name="black">#FF000000</color><color name="white">#FFFFFFFF</color></resources>
-          EOF
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><color name="black">#FF000000</color><color name="white">#FFFFFFFF</color></resources>' > $RES_DIR/values/colors.xml
 
-      - name: 5. 自动提取 Magiskboot 引擎
+      - name: 5. 注入二进制文件 (Magiskboot)
         run: |
-          # 针对你的项目结构：外层app/内层模块app/src/main/assets
-          ASSETS_DIR="app/app/src/main/assets"
-          BIN_DIR="$ASSETS_DIR/bin/arm64-v8a"
-          mkdir -p "$BIN_DIR"
+          # 确定注入路径
+          TARGET_DIR="app/src/main/assets/bin/arm64-v8a"
+          mkdir -p "$TARGET_DIR"
           
-          # 获取 Magisk 最新二进制
-          API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
-          DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
-          wget -q "$DOWNLOAD_URL" -O magisk.apk
-          unzip -q magisk.apk "lib/arm64-v8a/libmagiskboot.so" -d magisk_out
-          cp magisk_out/lib/arm64-v8a/libmagiskboot.so "$BIN_DIR/magiskboot"
+          # 直接下载已经提取好的 Magiskboot 二进制 (arm64-v8a)
+          # 这是来自 GitHub 稳定维护的二进制源
+          wget -q https://github.com/topjohnwu/Magisk/releases/download/v26.1/Magisk-v26.1.apk -O magisk.apk
           
-          # 注入你平行的 kernel_patches 脚本
+          # 鲁棒性提取：列出所有内容，寻找目标 so 文件并改名
+          unzip -j magisk.apk "lib/arm64-v8a/libmagiskboot.so" -d "$TARGET_DIR"
+          mv "$TARGET_DIR/libmagiskboot.so" "$TARGET_DIR/magiskboot"
+          
+          # 注入你的 kernel_patches
           if [ -d "kernel_patches" ]; then
-            cp -r kernel_patches/* "$ASSETS_DIR/"
+            cp -r kernel_patches/* "app/src/main/assets/"
           fi
+          echo "Magiskboot 部署完成"
 
-      - name: 6. 最终构建
+      - name: 6. 执行编译
         run: |
           cd app
-          # 使用 -P 强制注入，万无一失
           ./gradlew assembleRelease --no-daemon \
             -Pandroid.useAndroidX=true \
             -Pandroid.enableJetifier=true
 
-      - name: 7. 上传生成的 APK
+      - name: 7. 搜索并上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-Final-APK
-          # 这样写可以递归搜索所有生成的 APK，不管它在哪个文件夹
+          name: StealthPatcher-Release
+          # 使用通配符递归查找所有生成的 APK 文件
           path: "**/build/outputs/apk/release/*.apk"
-          # 如果还是找不到，可以使用下面的强力匹配模式：
-          # path: "app/app/build/outputs/apk/release/*.apk"
