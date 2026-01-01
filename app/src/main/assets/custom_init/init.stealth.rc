@@ -1,0 +1,18 @@
+# 目录标记：/app/src/main/assets/custom_init/init.stealth.rc
+
+on post-fs-data
+    # 创建模块存储基础目录
+    mkdir /data/adb/stealth 0755 root root
+    mkdir /data/adb/stealth/modules 0755 root root
+    mkdir /data/adb/stealth/workdir 0755 root root
+    
+    # 启动挂载引擎服务
+    start stealth_mounter
+
+service stealth_mounter /system/bin/sh /data/adb/stealth/mount_engine.sh
+    class main
+    user root
+    group root
+    oneshot
+    disabled
+    seclabel u:r:magisk:s0
