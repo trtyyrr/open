@@ -5,18 +5,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // 这里的版本要和你的开发环境匹配
+        // 确保版本号与你的项目匹配
         classpath 'com.android.tools.build:gradle:8.1.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20"
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// ⚠️ 重要：不要在这里写 allprojects 或 subprojects 的 repositories
+// 它们已经在 settings.gradle 中被统一接管了
 
 task clean(type: Delete) {
     delete rootProject.buildDir
