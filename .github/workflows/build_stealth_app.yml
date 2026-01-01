@@ -1,4 +1,4 @@
-name: Stealth Patcher Full Build
+name: Stealth Patcher Final Build
 
 on:
   push:
@@ -9,41 +9,55 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. 检出代码 (Checkout)
+      - name: 1. 检出代码
         uses: actions/checkout@v4
 
-      - name: 2. 初始化 Java 环境 (JDK 17)
+      - name: 2. 初始化 JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
 
-      - name: 3. 补全 Gradle 环境
+      - name: 3. 补齐 Gradle 运行环境
         run: |
-          # 进入项目根目录
           cd app
-          
-          # 下载 Gradle Wrapper
           G_VER="8.1.1"
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradlew -O gradlew
           chmod +x gradlew
           mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
-          
-          # 写入 Wrapper 配置
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-$G_VER-bin.zip" > gradle/wrapper/gradle-wrapper.properties
-          
-          # 【防御性编程】同时在 app 目录生成属性文件，双重保险
+          # 注入 AndroidX 配置 (解决 AAR Metadata 报错)
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
-          
-          echo "[√] Gradle 环境初始化完成"
 
-      - name: 4. 提取 Magiskboot 并注入 Assets
+      - name: 4. 自动生成极简图标与资源 (解决 Resource Not Found)
         run: |
-          # 定义最终 Assets 路径 (针对双层 app 结构: 外层app/内层app模块/...)
+          RES_DIR="app/src/main/res"
+          mkdir -p $RES_DIR/mipmap-anydpi-v26
+          mkdir -p $RES_DIR/values
+
+          # 生成一个简单的绿色盾牌/隐身风格矢量图标
+          cat <<EOF > $RES_DIR/mipmap-anydpi-v26/ic_launcher.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#000000" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#3DDC84" android:pathData="M54,20L24,34v20c0,18.5 12.8,35.8 30,40c17.2,-4.2 30,-21.5 30,-40V34L54,20zM54,40c4.4,0 8,3.6 8,8s-3.6,8 -8,8s-8,-3.6 -8,-8S49.6,40 54,40z"/>
+          </vector>
+          EOF
+
+          # 复制为圆形图标
+          cp $RES_DIR/mipmap-anydpi-v26/ic_launcher.xml $RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml
+          
+          # 补齐基础颜色定义
+          cat <<EOF > $RES_DIR/values/colors.xml
+          <?xml version="1.0" encoding="utf-8"?><resources><color name="black">#FF000000</color><color name="white">#FFFFFFFF</color></resources>
+          EOF
+
+      - name: 5. 自动提取 Magiskboot 引擎
+        run: |
+          # 针对你的项目结构：外层app/内层模块app/src/main/assets
           ASSETS_DIR="app/app/src/main/assets"
           BIN_DIR="$ASSETS_DIR/bin/arm64-v8a"
           mkdir -p "$BIN_DIR"
@@ -51,33 +65,25 @@ jobs:
           # 获取 Magisk 最新二进制
           API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
           DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
-          
-          echo "正在下载 Magisk 并提取二进制..."
           wget -q "$DOWNLOAD_URL" -O magisk.apk
           unzip -q magisk.apk "lib/arm64-v8a/libmagiskboot.so" -d magisk_out
-          
-          # 移动并重命名为 magiskboot
           cp magisk_out/lib/arm64-v8a/libmagiskboot.so "$BIN_DIR/magiskboot"
           
-          # 检查并注入 kernel_patches 脚本
+          # 注入你平行的 kernel_patches 脚本
           if [ -d "kernel_patches" ]; then
             cp -r kernel_patches/* "$ASSETS_DIR/"
-            echo "[√] 成功将 kernel_patches 脚本存入 Assets"
           fi
-          
-          echo "[√] Magiskboot 部署完成"
 
-      - name: 5. 执行正式编译 (带 AndroidX 强制参数)
+      - name: 6. 最终构建
         run: |
           cd app
-          # 使用 -P 注入属性是解决 checkReleaseAarMetadata FAILED 的最终绝招
+          # 使用 -P 强制注入，万无一失
           ./gradlew assembleRelease --no-daemon \
             -Pandroid.useAndroidX=true \
             -Pandroid.enableJetifier=true
 
-      - name: 6. 上传 APK 产物
+      - name: 7. 上传 APK 结果
         uses: actions/upload-artifact@v4
         with:
-          name: StealthManager-Release
-          # 匹配编译生成的 Release APK
+          name: StealthPatcher-Build
           path: "app/app/build/outputs/apk/release/*.apk"
