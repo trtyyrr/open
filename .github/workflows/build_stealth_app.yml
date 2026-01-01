@@ -82,8 +82,11 @@ jobs:
             -Pandroid.useAndroidX=true \
             -Pandroid.enableJetifier=true
 
-      - name: 7. 上传 APK 结果
+      - name: 7. 上传生成的 APK
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-Build
-          path: "app/app/build/outputs/apk/release/*.apk"
+          name: StealthPatcher-Final-APK
+          # 这样写可以递归搜索所有生成的 APK，不管它在哪个文件夹
+          path: "**/build/outputs/apk/release/*.apk"
+          # 如果还是找不到，可以使用下面的强力匹配模式：
+          # path: "app/app/build/outputs/apk/release/*.apk"
