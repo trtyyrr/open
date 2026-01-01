@@ -1,102 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F0F0F"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#0F0F0F">
 
-    <androidx.cardview.widget.CardView
+    <TextView
+        android:id="@+id/tv_engine_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardBackgroundColor="#1A1A1A"
-        app:cardCornerRadius="12dp"
-        android:layout_marginBottom="16dp">
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical">
-            <ImageView
-                android:id="@+id/iv_auth_status"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_dialog_info"
-                app:tint="#FF5252" /> <TextView
-                android:id="@+id/tv_auth_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" Root 权限：未授权"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:layout_marginStart="8dp" />
-            <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
-            <Button
-                android:id="@+id/btn_request_auth"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="点击授权"
-                android:textColor="#3DDC84" />
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
+        android:text="引擎状态: 正在初始化..."
+        android:textColor="#3DDC84"
+        android:layout_marginBottom="16dp"/>
 
-    <LinearLayout
+    <Button
+        android:id="@+id/btn_select"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
-        <Button
-            android:id="@+id/btn_select"
-            android:layout_width="0dp"
-            android:layout_height="60dp"
-            android:layout_weight="1"
-            android:text="选择 BOOT"
-            android:backgroundTint="#333333"
-            android:textColor="#FFFFFF"
-            android:layout_marginEnd="8dp" />
-        <Button
-            android:id="@+id/btn_patch"
-            android:layout_width="0dp"
-            android:layout_height="60dp"
-            android:layout_weight="1"
-            android:text="立即修补"
-            android:backgroundTint="#3DDC84"
-            android:textColor="#000000"
-            android:textStyle="bold" />
-    </LinearLayout>
+        android:text="选择原始 BOOT.IMG"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btn_patch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开始执行修补"
+        android:layout_marginBottom="16dp"/>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="可用补丁模块"
-        android:textColor="#3DDC84"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
+        android:text="补丁模块管理"
+        android:textColor="#888888"
+        android:textSize="12sp"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_modules"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#1A1A1A" />
+        android:layout_marginTop="8dp"
+        android:background="#1A1A1A"/>
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="150dp"
         android:layout_marginTop="16dp"
-        android:background="#000000"
-        android:padding="8dp">
+        android:background="#000000">
         <TextView
             android:id="@+id/tv_log"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="[系统信息] 等待操作...\n"
             android:textColor="#00FF00"
+            android:padding="8dp"
             android:fontFamily="monospace"
-            android:textSize="12sp" />
+            android:text="等待操作..."/>
     </ScrollView>
-
 </LinearLayout>
