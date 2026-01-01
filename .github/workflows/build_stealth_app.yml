@@ -1,9 +1,6 @@
-name: Stealth App Build (Final Fix)
+name: Stealth App Build (Direct Injection)
 
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -17,67 +14,44 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: 3. 动态补全 Gradle 运行环境
+      - name: 3. 补全 Gradle 运行环境
         run: |
-          # 进入你的项目目录
           cd app
-          
-          # 下载官方 Gradle Wrapper 脚本
           G_VER="8.1.1"
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradlew -O gradlew
           chmod +x gradlew
-          
-          # 补齐二进制 jar 和配置文件
           mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-$G_VER-bin.zip" > gradle/wrapper/gradle-wrapper.properties
-          
-          # 【核心修复】在当前目录注入 AndroidX 配置，解决 checkReleaseAarMetadata 错误
-          echo "android.useAndroidX=true" > gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
-          
-          echo "Gradle 环境准备完毕 (Path: $(pwd))"
 
-      - name: 4. 整合 Kernel Patches 脚本
+      - name: 4. 部署脚本与引擎 (Assets)
         run: |
-          # 确保 App 的 assets 目录存在
-          mkdir -p app/app/src/main/assets/
+          # 创建资源路径 (注意双层 app 路径)
+          mkdir -p app/app/src/main/assets/bin/arm64-v8a
           
-          # 将根目录下的 kernel_patches 拷贝到 App 的资源包里
+          # 拷贝 kernel_patches
           if [ -d "kernel_patches" ]; then
             cp -r kernel_patches/* app/app/src/main/assets/
-            echo "修补脚本已成功注入 Assets"
-          else
-            echo "警告: 未在根目录发现 kernel_patches 文件夹"
           fi
-
-      - name: 5. 动态注入 Magiskboot 引擎
-        run: |
-          # 定义存放路径 (根据你的目录结构推算)
-          TARGET_DIR="app/app/src/main/assets/bin/arm64-v8a"
-          mkdir -p $TARGET_DIR
           
-          # 从 Magisk 官方获取最新二进制
+          # 下载 Magiskboot
           API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
           DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
           wget -q "$DOWNLOAD_URL" -O magisk.apk
-          unzip -q magisk.apk -d tmp_pkg
-          
-          # 提取并重命名 magiskboot
-          cp tmp_pkg/lib/arm64-v8a/libmagiskboot.so $TARGET_DIR/magiskboot
-          echo "Magiskboot 引擎部署完毕"
+          unzip -q magisk.apk -d tmp_m
+          cp tmp_m/lib/arm64-v8a/libmagiskboot.so app/app/src/main/assets/bin/arm64-v8a/magiskboot
 
-      - name: 6. 执行正式构建
+      - name: 5. 强行构建 (参数注入)
         run: |
           cd app
-          # 使用 --no-daemon 确保重新读取注入的属性
-          ./gradlew assembleRelease --no-daemon
+          # 使用 -P 直接注入属性，跳过对 gradle.properties 文件的依赖
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.useAndroidX=true \
+            -Pandroid.enableJetifier=true
 
-      - name: 7. 收集并上传 APK
+      - name: 6. 上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-Final-Release
-          # 匹配生成的 APK 路径
+          name: StealthPatcher-Final
           path: "app/app/build/outputs/apk/release/*.apk"
