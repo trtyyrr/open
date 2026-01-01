@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.StealthManager" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="colorSecondary">#3DDC84</item>
+        <item name="android:windowBackground">#0F0F0F</item>
+    </style>
+</resources>
