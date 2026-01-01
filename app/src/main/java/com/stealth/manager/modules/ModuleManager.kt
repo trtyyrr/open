@@ -1,38 +1,21 @@
 package com.stealth.manager.modules
 
-import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipInputStream
+import android.content.Context
 
-class ModuleManager {
+// 必须定义这个类，否则 Adapter 会报错
+data class StealthModule(
+    val name: String,
+    val description: String,
+    var isEnabled: Boolean = false
+)
 
-    /**
-     * 安全地解压 Zip 文件到指定目录
-     */
-    fun unzipFile(zipFile: File, targetDir: File) {
-        if (!zipFile.exists()) return
-        if (!targetDir.exists()) targetDir.mkdirs()
-
-        ZipInputStream(zipFile.inputStream().buffered()).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                val outFile = File(targetDir, entry.name)
-                if (entry.isDirectory) {
-                    outFile.mkdirs()
-                } else {
-                    outFile.parentFile?.mkdirs()
-                    FileOutputStream(outFile).use { output ->
-                        zip.copyTo(output)
-                    }
-                }
-                zip.closeEntry()
-                entry = zip.nextEntry
-            }
+class ModuleManager(private val context: Context) {
+    fun listModules(): List<StealthModule> {
+        val list = mutableListOf<StealthModule>()
+        // 模拟扫描 assets
+        context.assets.list("kernel_patches")?.forEach {
+            list.add(StealthModule(it, "内核补丁模块"))
         }
-    }
-
-    fun init() {
-        // 这里的逻辑可以根据你的需求编写
-        println("Stealth Module Manager Initialized")
+        return list
     }
 }
