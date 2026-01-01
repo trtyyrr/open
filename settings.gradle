@@ -7,6 +7,7 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
+    // 这一行表示：如果 build.gradle 里写了仓库，就直接报错（这就是你刚才报错的原因）
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
