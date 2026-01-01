@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#F5F5F5">
+
+    <TextView
+        android:id="@+id/status_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stealth Patcher v1.0"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#333333" />
+
+    <TextView
+        android:id="@+id/bin_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="引擎状态: 检查中..."
+        android:layout_marginTop="8dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#CCCCCC"
+        android:layout_marginVertical="20dp" />
+
+    <Button
+        android:id="@+id/btn_select_boot"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="选择原始 Boot.img" />
+
+    <Button
+        android:id="@+id/btn_start_patch"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="开始执行 1.3.4 修补"
+        android:layout_marginTop="10dp"
+        android:enabled="false" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="20dp"
+        android:background="#000000"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/log_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="等待操作...\n"
+            android:textColor="#00FF00"
+            android:fontFamily="monospace"
+            android:textSize="12sp" />
+    </ScrollView>
+
+</LinearLayout>
