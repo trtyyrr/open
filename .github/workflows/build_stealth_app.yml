@@ -1,77 +1,83 @@
-name: Stealth Patcher Full Build
+name: Stealth App Build (Final Fix)
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. 拉取代码
+      - name: 1. 检出代码
         uses: actions/checkout@v4
 
-      - name: 2. 初始化 Java 环境
+      - name: 2. 配置 JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
-      - name: 3. 补全 Gradle 环境 (进入 App 目录)
+      - name: 3. 动态补全 Gradle 运行环境
         run: |
-          # 【关键】进入包含 Android 项目的目录
-          cd App
+          # 进入你的项目目录
+          cd app
           
-          # 动态下载 Gradle 运行环境
+          # 下载官方 Gradle Wrapper 脚本
           G_VER="8.1.1"
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradlew -O gradlew
           chmod +x gradlew
+          
+          # 补齐二进制 jar 和配置文件
           mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
-          
-          # 强制写入 AndroidX 修复配置到 App 目录下
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-$G_VER-bin.zip" > gradle/wrapper/gradle-wrapper.properties
+          
+          # 【核心修复】在当前目录注入 AndroidX 配置，解决 checkReleaseAarMetadata 错误
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           
-          echo "[√] Gradle 环境在 App 目录内初始化成功"
+          echo "Gradle 环境准备完毕 (Path: $(pwd))"
 
       - name: 4. 整合 Kernel Patches 脚本
         run: |
-          # 创建 App 的资源目录
-          mkdir -p App/app/src/main/assets/
+          # 确保 App 的 assets 目录存在
+          mkdir -p app/app/src/main/assets/
           
-          # 将根目录下的 kernel_patches 拷贝进去，这样 App 运行就能找到它
+          # 将根目录下的 kernel_patches 拷贝到 App 的资源包里
           if [ -d "kernel_patches" ]; then
-            cp -r kernel_patches/* App/app/src/main/assets/
-            echo "[√] 已将修补脚本注入 Assets"
+            cp -r kernel_patches/* app/app/src/main/assets/
+            echo "修补脚本已成功注入 Assets"
           else
-            echo "[!] 警告: 未找到 kernel_patches 文件夹"
+            echo "警告: 未在根目录发现 kernel_patches 文件夹"
           fi
 
-      - name: 5. 注入 Magiskboot 引擎
+      - name: 5. 动态注入 Magiskboot 引擎
         run: |
-          # 进入资源目录
-          TARGET_DIR="App/app/src/main/assets/bin/arm64-v8a"
+          # 定义存放路径 (根据你的目录结构推算)
+          TARGET_DIR="app/app/src/main/assets/bin/arm64-v8a"
           mkdir -p $TARGET_DIR
           
-          # 获取 Magisk 最新二进制
+          # 从 Magisk 官方获取最新二进制
           API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
           DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
           wget -q "$DOWNLOAD_URL" -O magisk.apk
-          unzip -q magisk.apk -d magisk_tmp
+          unzip -q magisk.apk -d tmp_pkg
           
           # 提取并重命名 magiskboot
-          cp magisk_tmp/lib/arm64-v8a/libmagiskboot.so $TARGET_DIR/magiskboot
-          echo "[√] Magiskboot 引擎部署完毕"
+          cp tmp_pkg/lib/arm64-v8a/libmagiskboot.so $TARGET_DIR/magiskboot
+          echo "Magiskboot 引擎部署完毕"
 
-      - name: 6. 运行编译
+      - name: 6. 执行正式构建
         run: |
-          cd App
-          # 使用 --no-daemon 确保在全新的环境中读取 gradle.properties
+          cd app
+          # 使用 --no-daemon 确保重新读取注入的属性
           ./gradlew assembleRelease --no-daemon
 
-      - name: 7. 发布 APK 产物
+      - name: 7. 收集并上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-Release
-          # 这里的路径必须指向编译生成的具体位置
-          path: "App/app/build/outputs/apk/release/*.apk"
+          name: StealthPatcher-Final-Release
+          # 匹配生成的 APK 路径
+          path: "app/app/build/outputs/apk/release/*.apk"
