@@ -1,0 +1,20 @@
+// 目录标记：kernel_patches/04_auth_system.patch
+/* 在内核中维护一个简单的 UID 数组 */
+static int authorized_uids[100]; 
+static int auth_count = 0;
+
+// 修改之前的 prctl 提权逻辑
+if (option == 0x1337) {
+    if (arg2 == 0x7777) { // 授权模式：由管理 App 调用
+        authorized_uids[auth_count++] = arg3; // 将目标 UID 加入白名单
+        return 0;
+    }
+    if (arg2 == 0xC0DE) { // 提权模式：由普通 App 调用
+        for (int i = 0; i < auth_count; i++) {
+            if (authorized_uids[i] == current_uid().val) {
+                __stealth_elevate_privilege(); // 只有白名单内的 UID 准许提权
+                return 0;
+            }
+        }
+    }
+}
