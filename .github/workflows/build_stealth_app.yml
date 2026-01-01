@@ -1,14 +1,11 @@
-name: Stealth Patcher CI/CD
+# 目录标记：.github/workflows/build_app.yml
+name: Stealth App Build (Auto-Gradle)
 
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: 1. 检出代码
         uses: actions/checkout@v4
@@ -18,42 +15,39 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: 3. 动态下载 Magisk 并提取二进制
+      - name: 3. 动态引入 Gradle Wrapper (核心步骤)
         run: |
-          # 创建 Asset 存放目录
-          mkdir -p app/src/main/assets/bin/arm64-v8a/
-          mkdir -p app/src/main/assets/bin/armeabi-v7a/
+          # 定义 Gradle 版本
+          G_VER="8.1.1"
+          
+          # 下载 gradlew 脚本
+          wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradlew -O gradlew
+          chmod +x gradlew
+          
+          # 创建并下载 wrapper jar
+          mkdir -p gradle/wrapper
+          wget -q https://raw.githubusercontent.com/gradle/gradle/v$G_VER/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
+          
+          # 创建 properties 配置文件
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-$G_VER-bin.zip" > gradle/wrapper/gradle-wrapper.properties
+          
+          echo "Gradle Wrapper 动态引入完成 (Version: $G_VER)"
 
-          # 使用 GitHub API 获取最新 Release 的下载地址
-          # 过滤出包含 ".apk" 的资源链接
+      - name: 4. 动态下载 Magiskboot 注入 Assets
+        run: |
+          mkdir -p app/src/main/assets/bin/arm64-v8a/
           API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
           DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
-          
-          echo "检测到最新版本链接: $DOWNLOAD_URL"
-          wget -q "$DOWNLOAD_URL" -O magisk_installer.zip
-
-          # 解压 APK 并提取 magiskboot
-          unzip -q magisk_installer.zip -d magisk_tmp
-
-          # 移动并重命名（去掉 .so 伪装，Magisk 官方为了过审将可执行文件伪装成了 so）
+          wget -q "$DOWNLOAD_URL" -O magisk.apk
+          unzip -q magisk.apk -d magisk_tmp
           cp magisk_tmp/lib/arm64-v8a/libmagiskboot.so app/src/main/assets/bin/arm64-v8a/magiskboot
-          cp magisk_tmp/lib/armeabi-v7a/libmagiskboot.so app/src/main/assets/bin/armeabi-v7a/magiskboot
 
-          # 清理临时文件
-          rm -rf magisk_tmp magisk_installer.zip
-          
-          echo "--- 二进制文件注入完成 ---"
-          ls -R app/src/main/assets/bin/
+      - name: 5. 执行构建
+        run: ./gradlew assembleRelease
 
-      - name: 4. 赋予 Gradle 权限并编译 APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease
-
-      - name: 5. 上传构建结果
+      - name: 6. 上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-Release
-          path: app/build/outputs/apk/release/*.apk
+          name: StealthPatcher-DynamicBuild
+          path: "**/app/build/outputs/apk/release/*.apk"
