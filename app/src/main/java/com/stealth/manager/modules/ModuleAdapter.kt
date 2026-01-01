@@ -11,25 +11,21 @@ import com.stealth.manager.R
 class ModuleAdapter(private val modules: List<StealthModule>) :
     RecyclerView.Adapter<ModuleAdapter.ViewHolder>() {
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val title: TextView = view.findViewById(R.id.module_title)
-        val switcher: Switch = view.findViewById(R.id.module_switch)
+    class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+        val title: TextView = v.findViewById(R.id.module_title)
+        val switcher: Switch = v.findViewById(R.id.module_switch)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_module, parent, false)
-        return ViewHolder(view)
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_module, parent, false)
+        return ViewHolder(v)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val module = modules[position]
-        holder.title.text = module.name
-        holder.switcher.isChecked = module.isEnabled
-        // 修正了之前变量赋值的语法错误
-        holder.switcher.setOnCheckedChangeListener { _, isChecked ->
-            module.isEnabled = isChecked
-        }
+        val m = modules[position]
+        holder.title.text = m.name
+        holder.switcher.isChecked = m.isEnabled
+        holder.switcher.setOnCheckedChangeListener { _, isChecked -> m.isEnabled = isChecked }
     }
 
     override fun getItemCount() = modules.size
