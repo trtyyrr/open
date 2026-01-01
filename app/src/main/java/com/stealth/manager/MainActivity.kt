@@ -1,28 +1,28 @@
-// 目录标记：/app/src/main/java/com/stealth/manager/MainActivity.kt
 package com.stealth.manager
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import java.io.File
+import com.stealth.manager.utils.BinaryHelper
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // 点击修补按钮触发
-        fun onPatchClicked(originalBootPath: String) {
-            val internalFiles = filesDir.absolutePath
+        setContentView(R.layout.activity_main)
+
+        // 启动时初始化二进制环境
+        thread {
+            val binPath = BinaryHelper.initMagiskboot(this)
             
-            // 1. 释放 assets 中的 magiskboot 和脚本
-            AssetUtils.copyAsset(this, "magiskboot", "$internalFiles/magiskboot")
-            AssetUtils.copyAsset(this, "patch_engine.sh", "$internalFiles/patch_engine.sh")
-            
-            // 2. 赋予执行权限
-            File("$internalFiles/magiskboot").setExecutable(true)
-            
-            // 3. 执行本地修补
-            val cmd = "sh $internalFiles/patch_engine.sh $internalFiles $originalBootPath"
-            Runtime.getRuntime().exec(cmd)
+            runOnUiThread {
+                if (binPath != null) {
+                    Toast.makeText(this, "内核修补引擎已就绪", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "初始化失败，请检查架构兼容性", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 }
