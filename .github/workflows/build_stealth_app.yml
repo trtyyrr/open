@@ -1,5 +1,4 @@
-# 目录标记：.github/workflows/build_stealth_app.yml
-name: Stealth App Builder
+name: Stealth Patcher CI/CD
 
 on:
   push:
@@ -9,41 +8,52 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: 检出项目代码
+      - name: 1. 检出代码
         uses: actions/checkout@v4
 
-      - name: 配置 JDK 17 环境
+      - name: 2. 配置 JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
 
-      - name: 注入 Magiskboot 二进制文件
+      - name: 3. 动态下载 Magisk 并提取二进制
         run: |
-          # 创建对应的 assets 架构目录
+          # 创建 Asset 存放目录
           mkdir -p app/src/main/assets/bin/arm64-v8a/
           mkdir -p app/src/main/assets/bin/armeabi-v7a/
+
+          # 使用 GitHub API 获取最新 Release 的下载地址
+          # 过滤出包含 ".apk" 的资源链接
+          API_URL="https://api.github.com/repos/topjohnwu/Magisk/releases/latest"
+          DOWNLOAD_URL=$(curl -s $API_URL | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url' | head -n 1)
           
-          # 从 Magisk 官方下载发布包 (使用 v27.0 版本)
-          wget https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.v3.zip
-          unzip Magisk-v27.0.v3.zip -d magisk_tmp
-          
-          # 提取二进制文件并重命名 (去除 .so 伪装)
+          echo "检测到最新版本链接: $DOWNLOAD_URL"
+          wget -q "$DOWNLOAD_URL" -O magisk_installer.zip
+
+          # 解压 APK 并提取 magiskboot
+          unzip -q magisk_installer.zip -d magisk_tmp
+
+          # 移动并重命名（去掉 .so 伪装，Magisk 官方为了过审将可执行文件伪装成了 so）
           cp magisk_tmp/lib/arm64-v8a/libmagiskboot.so app/src/main/assets/bin/arm64-v8a/magiskboot
           cp magisk_tmp/lib/armeabi-v7a/libmagiskboot.so app/src/main/assets/bin/armeabi-v7a/magiskboot
+
+          # 清理临时文件
+          rm -rf magisk_tmp magisk_installer.zip
           
-          echo "Binary check: "
+          echo "--- 二进制文件注入完成 ---"
           ls -R app/src/main/assets/bin/
-          
-      - name: 赋予构建权限并执行打包
+
+      - name: 4. 赋予 Gradle 权限并编译 APK
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      - name: 上传生成的 APK 产物
+      - name: 5. 上传构建结果
         uses: actions/upload-artifact@v4
         with:
-          name: StealthPatcher-v1.0
+          name: StealthPatcher-Release
           path: app/build/outputs/apk/release/*.apk
