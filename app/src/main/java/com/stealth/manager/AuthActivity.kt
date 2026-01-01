@@ -1,8 +1,24 @@
-// 目录标记：app/src/main/java/com/stealth/manager/AuthActivity.kt
-fun grantRoot(targetPackage: String) {
-    val uid = packageManager.getPackageInfo(targetPackage, 0).applicationInfo.uid
-    
-    // 调用 JNI 接口，向内核发送“授权指令”
-    // NativeLib.authorizeUid(0x7777, uid)
-    NativeLib.sendAuthToKernel(0x1337, 0x7777, uid)
+package com.stealth.manager
+
+import android.os.Bundle
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class AuthActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // 修复 packageManager 引用
+        val packageName = this.packageName
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "1.0.0"
+        }
+
+        // 移除未定义的 NativeLib 引用，改为简单的日志或提示
+        Toast.makeText(this, "Stealth Manager Version: $version", Toast.LENGTH_SHORT).show()
+        
+        // 如果你需要在这里做认证逻辑，可以在此扩展
+    }
 }
